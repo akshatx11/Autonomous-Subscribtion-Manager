@@ -1,0 +1,249 @@
+// Autonomous Subscription Manager - Prisma Schema
+// Maps database to TypeScript-safe ORM models
+// Run: npx prisma generate to update Prisma Client
+// Run: npx prisma migrate dev to create migrations
+// Run: npx prisma db push to sync with database
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  // Enable query engine optimization for better performance
+  engineType = "library"
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAUSED
+  CANCELED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  DISPUTED
+}
+
+enum PaymentMethod {
+  STRIPE
+  PAYPAL
+  BANK_TRANSFER
+}
+
+enum MetricType {
+  API_CALLS
+  STORAGE
+  BANDWIDTH
+  COMPUTE_HOURS
+  CONCURRENT_USERS
+}
+
+enum WebhookEventType {
+  RENEWAL_FAILED
+  NEW_SUBSCRIPTION
+  SUBSCRIPTION_CANCELED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  USAGE_LIMIT_REACHED
+}
+
+enum WebhookStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  RETRYING
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+/// User account with subscription reference
+model User {
+  id String @id @default(cuid())
+
+  email         String    @unique
+  name          String
+  passwordHash  String    @map("password_hash")
+  status        UserStatus @default(ACTIVE)
+  
+  // Relations
+  subscriptions Subscription[]
+  subscription  Subscription? @relation("CurrentSubscription", fields: [subscriptionId], references: [id])
+  subscriptionId String? @map("subscription_id")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([email])
+  @@index([status])
+  @@index([subscriptionId])
+  @@index([createdAt])
+  @@map("users")
+}
+
+/// Subscription plan tier with pricing and features
+model SubscriptionPlan {
+  id String @id @default(cuid())
+
+  name        String  @unique
+  description String?
+  priceMonthly Decimal @map("price_monthly")
+  priceYearly Decimal @map("price_yearly")
+  features    Json    @default("{}") // Array of feature strings
+  maxUsageLimit Json  @map("max_usage_limit") @default("{}") // Usage quotas per cycle
+  isActive    Boolean @default(true) @map("is_active")
+
+  // Relations
+  subscriptions Subscription[]
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([name])
+  @@index([isActive])
+  @@map("subscription_plans")
+}
+
+/// User subscription to a plan with lifecycle management
+model Subscription {
+  id String @id @default(cuid())
+
+  userId     String @map("user_id")
+  planId     String @map("plan_id")
+  status     SubscriptionStatus @default(ACTIVE)
+  startDate  DateTime @map("start_date")
+  endDate    DateTime? @map("end_date")
+  autoRenew  Boolean @default(true) @map("auto_renew")
+  billingCycle BillingCycle @default(MONTHLY) @map("billing_cycle")
+  currentCycleUsage Json @default("{}") @map("current_cycle_usage") // Real-time usage tracking
+
+  // Relations
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
+  usageLogs UsageLog[]
+  webhooks Webhook[]
+  userCurrentSubscription User[] @relation("CurrentSubscription")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([autoRenew])
+  @@unique([userId, planId]) // One active subscription per user per plan at a time
+  @@map("subscriptions")
+}
+
+/// Payment transaction with multi-gateway support
+model Payment {
+  id String @id @default(cuid())
+
+  subscriptionId String @map("subscription_id")
+  amount         Decimal
+  currency       String @default("USD")
+  status         PaymentStatus @default(PENDING)
+  paymentMethod  PaymentMethod @map("payment_method")
+  transactionId  String? @unique @map("transaction_id")
+  paidAt         DateTime? @map("paid_at")
+  refundedAt     DateTime? @map("refunded_at")
+  failureReason  String? @map("failure_reason")
+  metadata       Json @default("{}") // Provider-specific data (invoice ID, card last 4, etc.)
+
+  // Relations
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([paymentMethod])
+  @@index([transactionId])
+  @@index([paidAt])
+  @@map("payments")
+}
+
+/// Detailed usage metrics per subscription per billing cycle
+model UsageLog {
+  id String @id @default(cuid())
+
+  subscriptionId String @map("subscription_id")
+  metricType     MetricType @map("metric_type")
+  quantity       Decimal
+  loggedAt       DateTime @map("logged_at") @default(now())
+  metadata       Json @default("{}") // Event-specific context (endpoint, response time, etc.)
+
+  // Relations
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([subscriptionId])
+  @@index([metricType])
+  @@index([loggedAt])
+  @@index([subscriptionId, metricType]) // Composite index for common queries
+  @@map("usage_logs")
+}
+
+/// Webhook event queue for subscription state changes
+model Webhook {
+  id String @id @default(cuid())
+
+  eventType      WebhookEventType @map("event_type")
+  subscriptionId String? @map("subscription_id") // Nullable for system events
+  payload        Json @default("{}") // Complete event data for audit
+  status         WebhookStatus @default(PENDING)
+  processedAt    DateTime? @map("processed_at")
+  retryCount     Int @default(0) @map("retry_count")
+  lastError      String? @map("last_error")
+
+  // Relations
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([eventType])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([processedAt])
+  @@map("webhooks")
+}
