@@ -1,30 +1,35 @@
-# Autonomous-Subscribtion-Manager
+# Autonomous-subscription-manager
 A Web3-based system that autonomously manages subscriptions using smart contracts and on-chain automation
-Autonomous Subscription Manager
-🚀 Overview
-A Web3-powered platform that automatically manages user subscriptions based on usage, payments, and predefined rules using smart contracts.
+# Autonomous Subscription Manager
 
-🧠 Problem
-Users pay for subscriptions they don’t fully use. Manual cancellations are inefficient and forgotten.
+## 🚀 Overview
+A Web3-powered platform that automatically manages user subscriptions
+based on usage, payments, and predefined rules using smart contracts.
 
-💡 Solution
-Our system tracks usage and autonomously downgrades, or cancels subscriptions using blockchain automation.
+## 🧠 Problem
+Users pay for subscriptions they don’t fully use. Manual cancellations
+are inefficient and forgotten.
 
-🛠 Tech Stack
-Next.js + Tailwind
-Solidity Smart Contracts
-MetaMask
-Monad Blockchain
-x402 API payments
-Node.js backend
-🔗 Smart Contracts
+## 💡 Solution
+Our system tracks usage and autonomously downgrades,
+or cancels subscriptions using blockchain automation.
+
+## 🛠 Tech Stack
+- Next.js + Tailwind
+- Solidity Smart Contracts
+- MetaMask
+- Monad Blockchain
+- x402 API payments
+- Node.js backend
+
+## 🔗 Smart Contracts
 Deployed on Monad testnet for subscription logic and payment handling.
 
-⚙️ How It Works
-User connects wallet
-Subscribes via smart contract
-Usage tracked via API
-Automation triggers contract actions
+## ⚙️ How It Works
+1. User connects wallet
+2. Subscribes via smart contract
+3. Usage tracked via API
+4. Automation triggers contract actions
 
-👥 Team
+## 👥 Team
 Hackathon Project

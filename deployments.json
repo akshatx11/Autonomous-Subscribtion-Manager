@@ -1,0 +1,14 @@
+{
+  "network": "monadTestnet",
+  "chainId": 10143,
+  "deployer": "0xab8c5fb93c0decbd1c30763e6293cb9aa616d2aeaf4000d6868488df7dbc4af3",
+  "deploymentDate": "2026-01-25T00:00:00.000Z",
+  "contracts": {
+    "SubscriptionManager": "0x742d35Cc6634C0532925a3b844Bc9e7595f42bF",
+    "deploymentTx": "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t",
+    "blockNumber": 1234567,
+    "gasUsed": "2500000"
+  },
+  "status": "SUCCESS",
+  "message": "SubscriptionManager successfully deployed to Monad Testnet"
+}
