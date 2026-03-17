@@ -25,5 +25,6 @@ User connects wallet
 Subscribes via smart contract
 Usage tracked via API
 Automation triggers contract actions
+
 👥 Team
 Hackathon Project
